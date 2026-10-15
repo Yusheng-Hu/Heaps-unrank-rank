@@ -1,6 +1,12 @@
 # heaps_unrank — Rank / Unrank for the Heap permutation generation order
 
-[![CI](https://github.com/USER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/USER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/Yusheng-Hu/Heaps-unrank-rank/actions/workflows/ci.yml/badge.svg)](https://github.com/Yusheng-Hu/Heaps-unrank-rank/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/Yusheng-Hu/Heaps-unrank-rank?style=social)](https://github.com/Yusheng-Hu/Heaps-unrank-rank)
+![Field: Combinatorial Algorithms](https://img.shields.io/badge/Field-Combinatorial_Algorithms-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Language: C++](https://img.shields.io/badge/Language-C%2B%2B-red.svg)](#)
+[![Complexity: O(n³)](https://img.shields.io/badge/Complexity-O(n%C2%B3)-brightgreen.svg)](#)
+[![Space: O(n)](https://img.shields.io/badge/Space-O(n)-green.svg)](#)
 
 Rank and unrank algorithms for **Heap's permutation generation order** (B. R. Heap,
 *Permutations by interchanges*, 1963). Given an index, `unrank` returns the
@@ -11,9 +17,10 @@ its index. A detailed index for the Heap order is obtained directly, with
 * **no precomputed table** of any kind (nothing of factorial size is stored),
 * a single small closed-form helper (`step_map`) shared by both directions.
 
-**Author:** YUSHENG HU <dr.huyusheng@gmail.com>
-**Version:** 2.0
-**License:** MIT — see [`LICENSE`](LICENSE)
+- **Repository:** <https://github.com/Yusheng-Hu/Heaps-unrank-rank>
+- **Author:** YUSHENG HU <dr.huyusheng@gmail.com>
+- **Version:** 2.0
+- **License:** MIT — see [`LICENSE`](LICENSE)
 
 Reference implementation for the paper *"Bidirectional Mapping Algorithms,
 Operator-Algebraic Models, and Canonical Inductive Proofs for Heap's
@@ -163,8 +170,9 @@ The pipeline in `.github/workflows/ci.yml` runs three jobs:
   prints one `PASS`/`FAIL` line per check, so the log identifies the failure
   directly.
 
-**Badge**: replace `USER/REPO` in the badge at the top of this README with your
-GitHub account and repository name.
+**Badge**: the badge at the top of this README points at
+`.github/workflows/ci.yml`; it shows `passing` while the latest run of the
+workflow on the default branch succeeded.
 
 **Reproducing a CI job locally**
 
