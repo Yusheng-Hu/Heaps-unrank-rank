@@ -8,6 +8,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The default token only needs read access to the repository contents.
+permissions:
+  contents: read
+
 jobs:
   # ---------------------------------------------------------------------------
   # 1. Build and run the verification suite on Linux, macOS and Windows.
@@ -20,7 +24,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -29,7 +33,20 @@ jobs:
         run: cmake --build build --config Release
 
       - name: Run the verification suite (full, includes exhaustive n = 10)
-        run: ctest --test-dir build -C Release --output-on-failure
+        shell: bash
+        run: ctest --test-dir build -C Release -V 2>&1 | tee ctest.log
+
+      - name: Publish the test result to the run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## heaps_unrank verification suite'
+            echo
+            echo '```'
+            grep -E '\[(PASS|FAIL)\]|ALL CHECKS|FAILURES' ctest.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
   # 2. The library must compile warning-free under a strict warning set.
@@ -42,7 +59,7 @@ jobs:
       matrix:
         cxx: [ g++, clang++ ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Compile with -Wall -Wextra -Wpedantic -Werror
         run: |
@@ -58,7 +75,7 @@ jobs:
     name: ASan + UBSan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build with sanitizers
         run: |
@@ -67,4 +84,17 @@ jobs:
               heaps_unrank.cpp test_heaps_unrank.cpp -o test_san
 
       - name: Run
-        run: ./test_san
+        shell: bash
+        run: ./test_san 2>&1 | tee sanitizer.log
+
+      - name: Publish the test result to the run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## ASan + UBSan run'
+            echo
+            echo '```'
+            grep -E '\[(PASS|FAIL)\]|ALL CHECKS|FAILURES|runtime error|AddressSanitizer' sanitizer.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
