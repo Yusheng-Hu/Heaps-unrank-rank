@@ -1,0 +1,70 @@
+name: CI
+
+# Runs automatically on every push and pull request; can also be started by
+# hand from the "Actions" tab (see the README, section "GitHub Actions").
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Build and run the verification suite on Linux, macOS and Windows.
+  # ---------------------------------------------------------------------------
+  build-and-test:
+    name: build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run the verification suite (full, includes exhaustive n = 10)
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # 2. The library must compile warning-free under a strict warning set.
+  # ---------------------------------------------------------------------------
+  strict-warnings:
+    name: strict warnings (${{ matrix.cxx }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [ g++, clang++ ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile with -Wall -Wextra -Wpedantic -Werror
+        run: |
+          ${{ matrix.cxx }} -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. \
+            -c heaps_unrank.cpp -o /tmp/heaps_unrank.o
+          ${{ matrix.cxx }} -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. \
+            -c test_heaps_unrank.cpp -o /tmp/test_heaps_unrank.o
+
+  # ---------------------------------------------------------------------------
+  # 3. AddressSanitizer + UndefinedBehaviorSanitizer on the whole suite.
+  # ---------------------------------------------------------------------------
+  sanitizers:
+    name: ASan + UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with sanitizers
+        run: |
+          g++ -std=c++17 -O1 -g -fsanitize=address,undefined \
+              -fno-omit-frame-pointer -Wall -Wextra -I. \
+              heaps_unrank.cpp test_heaps_unrank.cpp -o test_san
+
+      - name: Run
+        run: ./test_san
