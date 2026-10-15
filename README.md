@@ -18,13 +18,12 @@ its index. A detailed index for the Heap order is obtained directly, with
 * a single small closed-form helper (`step_map`) shared by both directions.
 
 - **Repository:** <https://github.com/Yusheng-Hu/Heaps-unrank-rank>
+- **Companion paper:** *Ranking and Unranking Permutations in Heap's Order*
 - **Author:** YUSHENG HU <dr.huyusheng@gmail.com>
 - **Version:** 2.0
 - **License:** MIT — see [`LICENSE`](LICENSE)
 
-Reference implementation for the paper *"Bidirectional Mapping Algorithms,
-Operator-Algebraic Models, and Canonical Inductive Proofs for Heap's
-Permutations"*; it corresponds to Algorithm 1 (`step_map`), Algorithm 2
+Reference implementation for the paper *"Ranking and Unranking Permutations in Heap's Order"*; it corresponds to Algorithm 1 (`step_map`), Algorithm 2
 (`unrank`) and Algorithm 3 (`rank`).
 
 ---
@@ -199,5 +198,4 @@ Released under the MIT License; see [`LICENSE`](LICENSE).
 1. B. R. Heap. *Permutations by interchanges.* The Computer Journal 6(3):293–294, 1963.
 2. B. R. Heap's method appears in R. Sedgewick, *Permutation generation methods*,
    Computing Surveys 9:137–164, 1977, and in D. E. Knuth, *TAOCP Vol. 4, Fascicle 2*, 2005.
-3. YUSHENG HU. *Bidirectional Mapping Algorithms, Operator-Algebraic Models, and
-   Canonical Inductive Proofs for Heap's Permutations* (the companion paper).
+3. YUSHENG HU. *Ranking and Unranking Permutations in Heap's Order* (the companion paper).

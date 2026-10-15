@@ -6,8 +6,7 @@
 //  License: MIT (see LICENSE)
 //
 //  Reference implementation for the paper
-//    "Bidirectional Mapping Algorithms, Operator-Algebraic Models, and
-//     Canonical Inductive Proofs for Heap's Permutations"
+//    "Ranking and Unranking Permutations in Heap's Order"
 //  covering Algorithm 1 (step_map), Algorithm 2 (unrank), Algorithm 3 (rank).
 // =============================================================================
 
