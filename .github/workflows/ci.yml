@@ -63,10 +63,10 @@ jobs:
 
       - name: Compile with -Wall -Wextra -Wpedantic -Werror
         run: |
-          ${{ matrix.cxx }} -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. \
-            -c heaps_unrank.cpp -o /tmp/heaps_unrank.o
-          ${{ matrix.cxx }} -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. \
-            -c test_heaps_unrank.cpp -o /tmp/test_heaps_unrank.o
+          for f in heaps_unrank.cpp heaps_unrank_o_n3.cpp bench_heaps.cpp test_heaps_unrank.cpp; do
+            ${{ matrix.cxx }} -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. \
+              -c "$f" -o "/tmp/${f%.cpp}.o"
+          done
 
   # ---------------------------------------------------------------------------
   # 3. AddressSanitizer + UndefinedBehaviorSanitizer on the whole suite.
@@ -81,7 +81,7 @@ jobs:
         run: |
           g++ -std=c++17 -O1 -g -fsanitize=address,undefined \
               -fno-omit-frame-pointer -Wall -Wextra -I. \
-              heaps_unrank.cpp test_heaps_unrank.cpp -o test_san
+              heaps_unrank.cpp heaps_unrank_o_n3.cpp test_heaps_unrank.cpp -o test_san
 
       - name: Run
         shell: bash
