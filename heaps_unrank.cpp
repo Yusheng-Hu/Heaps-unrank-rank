@@ -1,26 +1,28 @@
 // =============================================================================
-//  heaps_unrank.cpp -- Rank / Unrank for the Heap permutation generation order
+//  heaps_unrank.cpp -- Rank / Unrank for the Heap permutation order
 //
 //  Author : YUSHENG HU <dr.huyusheng@gmail.com>
-//  Version: 2.0 (2026-10-15)
+//  Version: 2.1 (2026-10-19)
 //  License: MIT (see LICENSE)
 //
-//  Reference implementation for the paper
+//  Companion implementation for the paper
 //    "Ranking and Unranking Permutations in Heap's Order"
-//  Algorithms 1 (step_map), 2 (unrank), 3 (rank).
 //
-//  Code convention (high-first Lehmer code C):
-//      C[0]*(n-1)! + C[1]*(n-2)! + ... + C[n-2]*1!,   C[n-1] = 0,
-//      0 <= C[i] <= n-i-1.
-//  The paper uses the low-order-first code d, related by d[i] = C[n-2-i];
-//  in particular the digit read at level k is C[n-k] = d[k-2].
+//  Difference from the reference implementation (heaps_unrank.cpp): the only
+//  change is *how one step is applied*.  The reference version materialises
+//  the step table and rearranges the whole mapping entry by entry, which costs
+//  O(m) per step; here the step is applied directly:
 //
-//  Self-similarity: the block structure of Heap(k) is the accumulation of the
-//  same in-block rearrangement rule (step_map) level after level.  The
-//  trailing-element sequence is not independent information: it is exactly the
-//  sequence of old values overwritten while the mapping S is advanced, so it
-//  can be derived on the fly and never has to be precomputed (O(n) space, no
-//  factorial-size lookup table).
+//    * m odd  : the step is the transposition (0, m-1)  -> two swaps;
+//    * m even : the step is a single m-cycle            -> advance an offset
+//               along the cycle order and swap one entry.
+//
+//  The cycle order for even m is
+//      cyc = [0, m-3, m-4, ..., 2, 1, m-2, m-1],
+//  and cycle_index()/cycle_pos() map between a position and its index in cyc in
+//  closed form, so no auxiliary table is needed.  Everything else -- the code
+//  convention, the block/trailing-value bookkeeping, the level order -- is
+//  identical to the reference implementation.
 // =============================================================================
 
 #include "heaps_unrank.hpp"
@@ -29,6 +31,158 @@
 #include <cassert>
 
 namespace heaps {
+namespace {
+
+// Position p  ->  index of p in the cycle order cyc (even order m only).
+//
+// cyc = [0, m-3, m-4, ..., 2, 1, m-2, m-1], so
+//     p = 0            -> index 0
+//     1 <= p <= m-3    -> index m-2-p        (the descending run)
+//     p = m-2, m-1     -> index p            (the tail, already in place)
+int cycle_index(int m, int p) {
+    if (p == 0) return 0;
+    if (p <= m - 3) return m - 2 - p;
+    return p;
+}
+
+// Index i in the cycle order  ->  position (inverse of cycle_index).
+int cycle_pos(int m, int i) {
+    if (i == 0) return 0;
+    if (i <= m - 3) return m - 2 - i;
+    return i;
+}
+
+}  // namespace
+
+// -----------------------------------------------------------------------------
+// unrank
+//
+// Bottom-up, level k = 2 .. n.  At level k the digit b = C[n-k] is the block
+// index; the working mapping S is advanced b times, one O(1) step each.  Odd
+// order stores S as a position -> value array; even order stores it in cycle
+// order (W) together with an offset, so that the rotation of the m-cycle is a
+// single integer increment.
+// -----------------------------------------------------------------------------
+void unrank(int n, const int* C, int* perm) {
+    assert(n >= 1);
+    assert(C != nullptr && perm != nullptr);
+    perm[0] = 0;                          // level k = 1: the seed permutation
+
+    std::vector<int> p(1, 0), S, W, nxt;
+    for (int k = 2; k <= n; k++) {
+        const int m = k - 1;              // order of the step taken at level k
+        const int b = C[n - k];           // block index at this level
+        int last = k - 1;                 // trailing value at the base of block 0
+        nxt.resize((size_t)k);
+
+        if (m % 2 != 0) {
+            // odd order: one step == swap positions 0 and m-1, in O(1)
+            S.resize((size_t)m);
+            for (int i = 0; i < m; i++) S[(size_t)i] = i;
+            for (int j = 0; j < b; j++) {
+                std::swap(S[0], S[(size_t)(m - 1)]);
+                std::swap(S[(size_t)j], last);   // boundary interchange
+            }
+            for (int i = 0; i < m; i++) nxt[(size_t)i] = S[(size_t)p[(size_t)i]];
+            nxt[(size_t)m] = last;
+        } else {
+            // even order: one step == advance the offset along the m-cycle
+            W.resize((size_t)m);
+            for (int i = 0; i < m; i++) W[(size_t)i] = cycle_pos(m, i);
+            int off = 0;                        // current rotation of the cycle
+            for (int j = 0; j < b; j++) {
+                off = (off + 1 == m) ? 0 : off + 1;
+                std::swap(W[(size_t)off], last);   // boundary interchange
+            }
+            for (int i = 0; i < m; i++) {
+                int ci = cycle_index(m, p[(size_t)i]) + off;
+                if (ci >= m) ci -= m;
+                nxt[(size_t)i] = W[(size_t)ci];
+            }
+            nxt[(size_t)m] = last;
+        }
+        p.swap(nxt);
+    }
+    std::copy(p.begin(), p.end(), perm);
+}
+
+// -----------------------------------------------------------------------------
+// rank
+//
+// Top-down, level k = n .. 2: advance the mapping until the trailing entry of
+// the current permutation matches (the number of advances is the digit b), then
+// strip the trailing element with the inverse mapping.  The inverse is built in
+// one O(m) pass instead of being looked up by a linear scan per entry.
+// -----------------------------------------------------------------------------
+void rank(int n, const int* perm, int* C) {
+    assert(n >= 1);
+    assert(perm != nullptr && C != nullptr);
+    for (int i = 0; i < n; i++) C[i] = 0;     // C[n-1] is always 0
+
+    std::vector<int> p(perm, perm + n);       // working copy
+    std::vector<int> S, W, inv, nxt;
+
+    assert(([&] {                             // input must be a permutation
+        std::vector<char> seen((size_t)n, 0);
+        for (int i = 0; i < n; i++) {
+            if (p[(size_t)i] < 0 || p[(size_t)i] >= n || seen[(size_t)p[(size_t)i]]) return false;
+            seen[(size_t)p[(size_t)i]] = 1;
+        }
+        return true;
+    })());
+
+    for (int k = n; k >= 2; k--) {
+        const int m = k - 1;
+        const int target = p[(size_t)(k - 1)];   // trailing entry to reproduce
+        int last = k - 1;
+        int b = 0;
+
+        if (m % 2 != 0) {
+            S.resize((size_t)m);
+            for (int i = 0; i < m; i++) S[(size_t)i] = i;
+            while (target != last && b < m) {    // "b < m" is a safety net only
+                std::swap(S[0], S[(size_t)(m - 1)]);
+                std::swap(S[(size_t)b], last);
+                b++;
+            }
+            inv.assign((size_t)m + 1, -1);       // S may hold the value m
+            for (int i = 0; i < m; i++) inv[(size_t)S[(size_t)i]] = i;
+            nxt.resize((size_t)m);
+            for (int i = 0; i < m; i++) nxt[(size_t)i] = inv[(size_t)p[(size_t)i]];
+        } else {
+            W.resize((size_t)m);
+            for (int i = 0; i < m; i++) W[(size_t)i] = cycle_pos(m, i);
+            int off = 0;
+            while (target != last && b < m) {
+                off = (off + 1 == m) ? 0 : off + 1;
+                std::swap(W[(size_t)off], last);
+                b++;
+            }
+            inv.assign((size_t)m + 1, -1);
+            for (int i = 0; i < m; i++) {
+                int ci = i + off;
+                if (ci >= m) ci -= m;
+                inv[(size_t)W[(size_t)ci]] = cycle_pos(m, i);
+            }
+            nxt.resize((size_t)m);
+            for (int i = 0; i < m; i++) nxt[(size_t)i] = inv[(size_t)p[(size_t)i]];
+        }
+        C[n - k] = b;
+        p.swap(nxt);
+    }
+}
+
+std::vector<int> unrank(int n, const std::vector<int>& C) {
+    std::vector<int> perm((size_t)n);
+    unrank(n, C.data(), perm.data());
+    return perm;
+}
+
+std::vector<int> rank(int n, const std::vector<int>& perm) {
+    std::vector<int> C((size_t)n);
+    rank(n, perm.data(), C.data());
+    return C;
+}
 
 // -----------------------------------------------------------------------------
 // Algorithm 1: step_map(k)
@@ -60,118 +214,6 @@ std::vector<int> step_map(int k) {
         t[k - 1] = 0;
     }
     return t;
-}
-
-// -----------------------------------------------------------------------------
-// Algorithm 2: unrank
-//
-// Bottom-up construction.  Starting from the seed permutation [0] at k = 1,
-// the permutation is extended level by level up to k = n.  At level k the
-// digit b = C[n-k] is the index of the block that is entered; the position
-// mapping S is advanced from the base of block 0 to the base of block b by
-// repeating the pair (in-block traversal, boundary interchange).
-// -----------------------------------------------------------------------------
-void unrank(int n, const int* C, int* perm) {
-    assert(n >= 1);
-    assert(C != nullptr && perm != nullptr);
-    perm[0] = 0;                        // level k = 1: the seed permutation
-
-    std::vector<int> S, tmp, result;
-    for (int k = 2; k <= n; k++) {
-        const int size = k - 1;         // length of the permutation built so far
-        const int b = C[n - k];         // block index at this level
-
-        // level-invariant: the step table and the scratch buffers are reused
-        const std::vector<int> t = step_map(size);
-
-        S.resize(size);                 // S: position -> value, identity initially
-        for (int i = 0; i < size; i++) S[i] = i;
-        tmp.resize(size);
-        int last = k - 1;               // trailing value at the base of block 0
-
-        for (int j = 0; j < b; j++) {
-            for (int i = 0; i < size; i++) tmp[i] = S[t[i]];
-            S.swap(tmp);                // tmp now holds the previous mapping
-            const int pos = (k % 2 == 0) ? j : 0;
-            std::swap(S[pos], last);    // the value overwritten here becomes the
-                                        // new trailing value (derived on the fly)
-        }
-
-        // translate the symbolic permutation of the previous level into values
-        result.resize(size + 1);
-        for (int i = 0; i < size; i++) result[i] = S[perm[i]];
-        result[size] = last;
-        for (int i = 0; i <= size; i++) perm[i] = result[i];
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Algorithm 3: rank
-//
-// Top-down reduction.  At level k, the trailing sequence is derived step by
-// step until the trailing entry of the current permutation matches; the number
-// of steps is the digit C[n-k].  The trailing element is then stripped off with
-// S^{-1} and the algorithm descends one level.
-// -----------------------------------------------------------------------------
-void rank(int n, const int* perm, int* C) {
-    assert(n >= 1);
-    assert(perm != nullptr && C != nullptr);
-    for (int i = 0; i < n; i++) C[i] = 0;   // C[n-1] is always 0
-
-    std::vector<int> p(perm, perm + n);     // working copy, mutated below
-
-    assert(([&] {                          // the input must be a permutation of 0..n-1
-        std::vector<char> seen(n, 0);
-        for (int i = 0; i < n; i++) {
-            if (p[i] < 0 || p[i] >= n || seen[p[i]]) return false;
-            seen[p[i]] = 1;
-        }
-        return true;
-    })());
-
-    std::vector<int> S, tmp;
-    for (int k = n; k >= 2; k--) {
-        const int size = k - 1;
-        const std::vector<int> t = step_map(size);
-
-        S.resize(size);
-        for (int i = 0; i < size; i++) S[i] = i;
-        tmp.resize(size);
-        int last = k - 1;                    // trailing value at the base of block 0
-
-        // derive the trailing sequence until it meets the current trailing entry
-        int b = 0;
-        while (p[k - 1] != last && b < size) {  // "b < size" is only a safety net:
-                                                // for valid input the loop is
-                                                // bounded by size (paper, Lemma 5.1)
-            for (int i = 0; i < size; i++) tmp[i] = S[t[i]];
-            S.swap(tmp);
-            const int pos = (k % 2 == 0) ? b : 0;
-            std::swap(S[pos], last);
-            b++;
-        }
-        C[n - k] = b;
-
-        // inverse mapping: look each value up in S (S is a bijection, so S^{-1}
-        // recovers the lower-order sub-permutation)
-        for (int i = 0; i < size; i++) {
-            int idx = 0;
-            while (S[idx] != p[i]) idx++;
-            p[i] = idx;
-        }
-    }
-}
-
-std::vector<int> unrank(int n, const std::vector<int>& C) {
-    std::vector<int> perm(n);
-    unrank(n, C.data(), perm.data());
-    return perm;
-}
-
-std::vector<int> rank(int n, const std::vector<int>& perm) {
-    std::vector<int> C(n);
-    rank(n, perm.data(), C.data());
-    return C;
 }
 
 }  // namespace heaps
