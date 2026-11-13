@@ -20,10 +20,11 @@ ifeq ($(OS),Windows_NT)
 endif
 BIN      := $(BUILD)/test_heaps_unrank$(EXE)
 BENCH    := $(BUILD)/bench_heaps$(EXE)
-SOURCES  := heaps_unrank.cpp heaps_unrank_o_n3.cpp test_heaps_unrank.cpp
-HEADERS  := heaps_unrank.hpp heaps_unrank_o_n3.hpp
+GEN      := $(BUILD)/test_generators$(EXE)
+SOURCES  := heaps_unrank.cpp heaps_unrank_o_n3.cpp heaps_generator.cpp test_heaps_unrank.cpp
+HEADERS  := heaps_unrank.hpp heaps_unrank_o_n3.hpp heaps_generator.hpp
 
-.PHONY: all test full quick bench clean
+.PHONY: all test gen full quick bench clean
 
 all: test
 
@@ -35,8 +36,16 @@ $(BENCH): bench_heaps.cpp heaps_unrank.cpp heaps_unrank_o_n3.cpp $(HEADERS)
 	@mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) -I. -o $@ bench_heaps.cpp heaps_unrank.cpp heaps_unrank_o_n3.cpp
 
-test: $(BIN)
+test: $(BIN) $(GEN)
 	./$(BIN)
+	./$(GEN)
+
+gen: $(GEN)
+	./$(GEN)
+
+$(GEN): heaps_generator.cpp test_generators.cpp heaps_unrank.cpp $(HEADERS)
+	@mkdir -p $(BUILD)
+	$(CXX) $(CXXFLAGS) -I. -o $@ heaps_generator.cpp test_generators.cpp heaps_unrank.cpp
 
 full: $(BIN)
 	./$(BIN) --full

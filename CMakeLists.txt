@@ -26,7 +26,7 @@ else()
   set(HEAPS_WARNINGS -Wall -Wextra -Wpedantic)
 endif()
 
-add_library(heaps_unrank STATIC heaps_unrank.cpp heaps_unrank_o_n3.cpp)
+add_library(heaps_unrank STATIC heaps_unrank.cpp heaps_unrank_o_n3.cpp heaps_generator.cpp)
 target_include_directories(heaps_unrank PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(heaps_unrank PRIVATE ${HEAPS_WARNINGS})
 
@@ -39,6 +39,14 @@ target_compile_options(test_heaps_unrank PRIVATE ${HEAPS_WARNINGS})
 # The full suite includes the exhaustive n = 10 check (3,628,800 codes) and
 # exercises both implementations.
 add_test(NAME heaps_unrank_full COMMAND test_heaps_unrank --full)
+
+# Resumable generation (paper, Section 5): restore the classical counter array,
+# or drive the loop by the factorial counter.  Both are compared with
+# heaps::unrank() for n <= 8.
+add_executable(test_generators test_generators.cpp)
+target_link_libraries(test_generators PRIVATE heaps_unrank)
+target_compile_options(test_generators PRIVATE ${HEAPS_WARNINGS})
+add_test(NAME generators COMMAND test_generators)
 
 # Wall-clock benchmark (not a test); the paper's operation counts come from an
 # instrumented build.

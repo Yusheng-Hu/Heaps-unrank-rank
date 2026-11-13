@@ -19,8 +19,9 @@
 //  algorithms from Theta(n^3) to Theta(n^2).  Space stays O(n) and no table of
 //  factorial size is used.
 //
-//  The reference (dense) implementation is heaps_unrank.hpp; it is kept as the
-//  baseline, and the test suite verifies that both produce identical results.
+//  The reference (dense) implementation is heaps_unrank_o_n3.hpp; it is kept as
+//  the baseline, and the test suite verifies that both produce identical
+//  results.
 // =============================================================================
 
 #ifndef HEAPS_UNRANK_HPP

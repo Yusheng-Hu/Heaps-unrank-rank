@@ -8,8 +8,8 @@
 //  Companion implementation for the paper
 //    "Ranking and Unranking Permutations in Heap's Order"
 //
-//  Difference from the reference implementation (heaps_unrank.cpp): the only
-//  change is *how one step is applied*.  The reference version materialises
+//  Difference from the baseline implementation (heaps_unrank_o_n3.cpp): the
+//  only change is *how one step is applied*.  The reference version materialises
 //  the step table and rearranges the whole mapping entry by entry, which costs
 //  O(m) per step; here the step is applied directly:
 //
@@ -22,7 +22,7 @@
 //  and cycle_index()/cycle_pos() map between a position and its index in cyc in
 //  closed form, so no auxiliary table is needed.  Everything else -- the code
 //  convention, the block/trailing-value bookkeeping, the level order -- is
-//  identical to the reference implementation.
+//  identical to the baseline implementation.
 // =============================================================================
 
 #include "heaps_unrank.hpp"
