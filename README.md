@@ -5,24 +5,18 @@
 ![Field: Combinatorial Algorithms](https://img.shields.io/badge/Field-Combinatorial_Algorithms-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Language: C++](https://img.shields.io/badge/Language-C%2B%2B-red.svg)](#)
-[![Complexity: O(n^2) / O(n^3)](https://img.shields.io/badge/Complexity-O(n%5E2)%20%2F%20O(n%5E3)-brightgreen.svg)](#)
+[![Time: Theta(n^2)](https://img.shields.io/badge/Time-Theta(n%5E2)-brightgreen.svg)](#)
 [![Space: O(n)](https://img.shields.io/badge/Space-O(n)-green.svg)](#)
 
-Rank and unrank algorithms for **Heap's permutation generation order** (B. R. Heap,
-*Permutations by interchanges*, 1963). Given an index, `unrank` returns the
-corresponding permutation of Heap's sequence; given a permutation, `rank` returns
-its index.
+Rank and unrank for **Heap's permutation generation order** (B. R. Heap,
+*Permutations by interchanges*, 1963). `unrank` maps an index in `0 .. n!-1` to
+the permutation standing at that position of Heap's sequence; `rank` is its
+inverse. Both take **Theta(n^2)** time and **O(n)** working space, and neither
+uses a precomputed table of any kind.
 
-Two implementations are provided side by side, sharing one code convention and
-one test suite:
-
-| Implementation | Header / API | Time | Space | Role |
-|---|---|---|---|---|
-| **Main** | `heaps_unrank.hpp` -- `unrank`, `rank` | **Theta(n^2)** | O(n) | the recommended one |
-| **Baseline** (dense) | `heaps_unrank_o_n3.hpp` -- `unrank_o_n3`, `rank_o_n3` | Theta(n^3) | O(n) | the paper's dense version, kept as an independent cross-check |
-
-Neither uses a precomputed table of any kind, and both build on the same single
-closed-form helper (`step_map`, the paper's in-block step operator).
+A dense Theta(n^3) variant of the same construction is kept in
+`heaps_unrank_o_n3.*` and is exercised by the test suite as an independent
+cross-check.
 
 - **Repository:** <https://github.com/Yusheng-Hu/Heaps-unrank-rank>
 - **Companion paper:** *Ranking and Unranking Permutations in Heap's Order* -- PDF
@@ -31,15 +25,38 @@ closed-form helper (`step_map`, the paper's in-block step operator).
 - **Version:** 2.1
 - **License:** MIT -- see [`LICENSE`](LICENSE)
 
-The baseline implements Algorithms 2-3 of the paper as they are stated there,
-applying the whole step table at every step. The main implementation keeps the
-same construction but replaces the application of one step by the per-step O(1)
-form of Section 4.5 and the corollary that follows the cycle-dichotomy lemma;
-that is the only difference, and it is what lowers the total cost from
-Theta(n^3) to Theta(n^2). The baseline files are deliberately left unchanged, so
-the two implementations remain independent evidence for each other.
-
 ---
+
+## Using the library
+
+```cpp
+#include "heaps_unrank.hpp"
+#include <cstdio>
+
+int main() {
+    const int n = 4;
+    int C[n] = {0, 0, 0, 0};        // index: high-first Lehmer code, see below
+
+    int perm[n];
+    heaps::unrank(n, C, perm);      // index -> permutation
+
+    int back[n];
+    heaps::rank(n, perm, back);     // permutation -> index, back == C
+
+    for (int i = 0; i < n; i++) std::printf("%d ", perm[i]);
+    std::printf("\n");
+}
+```
+
+`std::vector` overloads are provided as well:
+
+```cpp
+std::vector<int> perm = heaps::unrank(n, C);   // C is a std::vector<int>
+std::vector<int> C2   = heaps::rank(n, perm);
+```
+
+The closed form of one in-block step is exposed as `heaps::step_map(k)`
+(declared in `heaps_unrank.hpp`); it is the paper's `Step(k)` table.
 
 ## Index convention
 
@@ -52,11 +69,9 @@ index = C[0]*(n-1)! + C[1]*(n-2)! + ... + C[n-2]*1! + C[n-1]*0!
 
 The paper writes the same index in low-order-first form `d`, related by
 `d[i] = C[n-2-i]`; the digit read at level `k` is `C[n-k] = d[k-2]`.
-The code space has `n!` elements, matching the `n!` permutations. Both
-implementations take and return exactly the same convention, so they are
-interchangeable in a program.
+The code space has `n!` elements, matching the `n!` permutations.
 
-## What the code does
+## How the algorithm works
 
 The `n!` permutation space is split into `n` blocks of `(n-1)!` permutations.
 Inside a block the first `n-1` positions run through the lower-order Heap
@@ -71,23 +86,20 @@ work:
   interchange, so it is **derived on the fly** and never has to be tabulated;
 * **`step_map(k)` has only two shapes** -- the transposition `(0, k-1)` for odd
   `k`, and a single `k`-cycle for even `k` -- so one step can be applied with
-  O(1) element moves instead of O(k). This is what separates the main
-  implementation from the baseline one, and it is what lowers the total cost
-  from Theta(n^3) to Theta(n^2).
+  O(1) element moves instead of O(k). A level therefore costs `Theta(k)` and a
+  whole call costs `Theta(n^2)`.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `heaps_unrank.hpp` | public interface of the **main** implementation (Theta(n^2)) + `step_map` |
-| `heaps_unrank.cpp` | its implementation (per-step O(1) block transition) |
-| `heaps_unrank_o_n3.hpp` | public interface of the **baseline** implementation (dense, Theta(n^3)) |
-| `heaps_unrank_o_n3.cpp` | its implementation (Algorithms 2-3 applied densely) |
+| `heaps_unrank.hpp` | public interface: `unrank`, `rank`, `step_map`, vector overloads |
+| `heaps_unrank.cpp` | implementation (per-step O(1) block transition, paper Section 4.5) |
 | `heaps_generator.hpp` | resumable generation (paper, Section 5): `restore_context`, `FactorialHeapGenerator` |
 | `heaps_generator.cpp` | the two routes that start the Heap sequence at an arbitrary index |
-| `test_generators.cpp` | consistency test of both routes against `heaps::unrank()` (n <= 8) |
-| `test_heaps_unrank.cpp` | verification suite, exercises **both** implementations |
-| `bench_heaps.cpp` | wall-clock comparison of the two implementations |
+| `test_heaps_unrank.cpp` | verification suite |
+| `test_generators.cpp` | consistency test of both restart routes against `heaps::unrank()` (n <= 8) |
+| `bench_heaps.cpp` | wall-clock benchmark of a single `unrank` call |
 | `paper/heap_paper_en.pdf` | the companion paper (current version) |
 | `Makefile` | simple build / test / bench targets |
 | `CMakeLists.txt` | CMake build with two CTest tests |
@@ -102,7 +114,7 @@ make            # build and run the standard suite + generator suite  (~20 s)
 make full       # full suite: also exhaustively checks n = 10          (~40 s)
 make quick      # quick smoke test                                     (~3 s)
 make gen        # resumable-generation consistency test               (~0.3 s)
-make bench      # wall-clock benchmark of both implementations
+make bench      # wall-clock benchmark
 ```
 
 With CMake:
@@ -121,45 +133,53 @@ c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -I. \
 ./test_heaps_unrank --full
 ```
 
-## Using the library
+## What the verification suite checks
 
-The two implementations are interchangeable and return identical results; use
-the main one, and reach for the baseline only if you want the dense version for
-reference or cross-checking.
+| # | Check | Scale |
+|---|---|---|
+| 1 | `step_map(k)` equals the closed form `F_k` of the paper | `k = 1..24` |
+| 2 | the step table has the structure the implementation relies on: transposition `(0,k-1)` for odd `k`, one `k`-cycle along the cycle order for even `k` | `k = 3..24` |
+| 3 | **Exhaustive**: every code is compared with the permutation produced by Heap's own iterative algorithm (independent ground truth) | `n = 1..9` -- 362,880 codes at `n = 9`; `--full` adds `n = 10` -- 3,628,800 codes |
+| 4 | **Exhaustive** round trip `rank(unrank(C)) == C` for every code | `n = 1..8` (all `n!` codes) |
+| 5 | Randomised round trips, plus a validity check that the output is a permutation of `0..n-1` | `n in {12,16,20,32,48,64,100}`, 20,000 trials each |
 
-```cpp
-#include "heaps_unrank.hpp"        // main:     Theta(n^2)
-#include "heaps_unrank_o_n3.hpp"   // baseline: Theta(n^3)
-#include <cstdio>
+The generator suite is a separate program (`test_generators`); it is described
+under *Resumable generation*.
 
-int main() {
-    const int n = 4;
-    int C[n] = {0, 0, 0, 0};        // index (high-first Lehmer code)
+The program exits with status 0 only when every check passes, and prints a
+`PASS`/`FAIL` line per check. Check 3 is the strongest evidence: all `n!` codes
+of order `n` are matched one by one against the sequence that Heap's algorithm
+itself emits.
 
-    int main_perm[n], base_perm[n];
-    heaps::unrank(n, C, main_perm);         // index -> permutation, Theta(n^2)
-    heaps::unrank_o_n3(n, C, base_perm);    // index -> permutation, Theta(n^3)
+Measured on a development machine (clang 22, `-O2`): **26 checks, 0 failures in
+~19 s** for the default run, **27 checks in ~34 s** with `--full`, and ~3 s with
+`--quick`. Compilation is warning-free under `-Wall -Wextra -Wpedantic -Werror`,
+and both suites run clean under AddressSanitizer and UndefinedBehaviorSanitizer.
 
-    int back[n];
-    heaps::rank(n, main_perm, back);        // permutation -> index, Theta(n^2)
+## Complexity
 
-    for (int i = 0; i < n; i++) std::printf("%d ", main_perm[i]);
-    std::printf("\n");
-    // main_perm and base_perm agree for every code, and rank(main_perm) == C
-}
-```
+| Direction | Time | Space | Precomputation |
+|---|---|---|---|
+| `unrank` | **Theta(n^2)** | `O(n)` | none |
+| `rank` | **Theta(n^2)** | `O(n)` | none |
 
-`std::vector` overloads are provided for both:
+The block transition is applied in O(1) rather than by walking the whole
+`step_map` table, so a level costs `Theta(k)` and a whole call costs
+`Theta(n^2)`. Only linear working arrays are kept; no factorial-size lookup
+table is used. The paper proves the bound in Section 8 (time) and Section 8.2
+(space), and verifies the resulting sequences in Section 7.
 
-```cpp
-std::vector<int> perm  = heaps::unrank(n, C);            // C is a std::vector<int>
-std::vector<int> C2    = heaps::rank(n, perm);
-std::vector<int> perm2 = heaps::unrank_o_n3(n, C);       // baseline version
-```
+Sample wall-clock timings from `make bench` (one `unrank` call, best of five,
+one random code per size, clang 22 `-O2`; machine-specific, for orientation
+only):
 
-The closed-form step table is available as `heaps::step_map(k)` (declared in
-`heaps_unrank.hpp`); the baseline implementation and the test suite use it, the
-main implementation does not need it.
+| `n` | 10 | 20 | 40 | 60 | 80 | 100 | 150 | 200 |
+|---|---|---|---|---|---|---|---|---|
+| `unrank`, us | 2.9 | 3.6 | 6.2 | 10.7 | 15.0 | 22.7 | 49.1 | 110.6 |
+
+Doubling `n` from 100 to 200 multiplies the time by about five, which is the
+quadratic growth the analysis predicts. The paper deliberately keeps its
+analysis asymptotic and reports no machine timings.
 
 ## Resumable generation
 
@@ -193,65 +213,7 @@ Arndt's `perm_heap2` (see References); the paper states that it is not new, and
 says why the two routes are not interchangeable.
 
 `test_generators` compares both routes with `heaps::unrank()` for every index at
-n <= 8 -- 595,011 checks, ~0.3 s.
-
-## What the verification suite checks
-
-Everything is checked for **both** implementations, and the two are compared
-against each other as well as against independent ground truth.
-
-| # | Check | Scale |
-|---|---|---|
-| 1 | `step_map(k)` equals the closed form `F_k` of the paper | `k = 1..24` |
-| 2 | the step table has the structure the main implementation relies on: transposition `(0,k-1)` for odd `k`, one `k`-cycle along the cycle order for even `k` | `k = 3..24` |
-| 3 | **Exhaustive**: every code is compared with the iterative Heap algorithm (ground truth) *and* the two implementations must agree | `n = 1..9` -- 362,880 codes at `n = 9`; `--full` adds `n = 10` -- 3,628,800 codes |
-| 4 | **Exhaustive** round trip `rank(unrank(C)) == C` for both implementations, plus `unrank(C) == unrank_o_n3(C)` | `n = 1..8` (all `n!` codes) |
-| 5 | Randomised round trips for both implementations, plus a validity check that the output is a permutation of `0..n-1` | `n in {12,16,20,32,48,64,100}`, 20,000 trials each |
-
-The generator suite is a separate program (`test_generators`, 595,011 checks);
-it is described under *Resumable generation*.
-
-The program exits with status 0 only when every check passes, and prints a
-`PASS`/`FAIL` line per check. Check 3 is the strongest evidence: all `n!` codes
-of order `n` are matched one by one against the permutation produced by Heap's
-own iterative algorithm, for both implementations.
-
-Measured on a development machine (clang 22, `-O2`): **26 checks, 0 failures in
-~19 s** for the default run, **27 checks in ~34 s** with `--full`, and ~3 s with
-`--quick`. Compilation is warning-free under `-Wall -Wextra -Wpedantic -Werror`,
-and both suites run clean under AddressSanitizer and UndefinedBehaviorSanitizer.
-
-## Complexity
-
-| Direction | Baseline (dense, `_o_n3`) | Main | Space | Precomputation |
-|---|---|---|---|---|
-| `unrank` | Theta(n^3) | **Theta(n^2)** | `O(n)` | none |
-| `rank` | Theta(n^3) | **Theta(n^2)** | `O(n)` | none |
-
-The baseline applies the whole `step_map` table at every step, which costs
-`Theta(k)` per step and `Theta(k^2)` per level. The main implementation applies
-the same step in O(1) -- two swaps for odd `k-1`, one offset increment for even
-`k-1` -- so a level costs `Theta(k)` and the total is `Theta(n^2)`. Both keep
-only linear working arrays; no factorial-size lookup table is used. The paper
-proves this in Section 8 (time) and Section 8.2 (space), and verifies the
-resulting sequences in Section 7.
-
-Sample wall-clock timings from `make bench` (single unrank call, best of five,
-one random code per size, clang 22 `-O2`; machine-specific, for orientation only):
-
-| `n` | baseline (ns) | main (ns) | ratio |
-|---:|---:|---:|---:|
-| 10 | 2 200 | 1 500 | 1.47x |
-| 40 | 14 300 | 4 700 | 3.04x |
-| 80 | 74 000 | 14 300 | 5.17x |
-| 100 | 154 200 | 22 800 | 6.76x |
-| 200 | 940 000 | 82 500 | 11.39x |
-
-The ratio grows with `n`, in the direction implied by the saved `O(k)` factor --
-at `n = 200` the quadratic version is already more than eleven times faster --
-while at small `n` it is dominated by constants and cache effects. The paper
-deliberately keeps its analysis asymptotic and does not report machine
-timings.
+`n <= 8` -- 595,011 checks, ~0.3 s.
 
 ## GitHub Actions
 
@@ -259,8 +221,8 @@ The pipeline in `.github/workflows/ci.yml` runs three jobs:
 
 | Job | What it does |
 |---|---|
-| `build & test (os)` | configures and builds with CMake, then runs **both** CTest tests (the full verification suite and the generator suite) on `ubuntu-latest`, `macos-latest` and `windows-latest` |
-| `strict warnings (cxx)` | compiles every source file, including the two test programs, with `-Wall -Wextra -Wpedantic -Werror` under `g++` and `clang++` |
+| `build & test (os)` | configures and builds with CMake, then runs both CTest tests (verification suite and generator suite) on `ubuntu-latest`, `macos-latest` and `windows-latest` |
+| `strict warnings (cxx)` | compiles every source file, including the test programs, with `-Wall -Wextra -Wpedantic -Werror` under `g++` and `clang++` |
 | `ASan + UBSan` | rebuilds both suites with `-fsanitize=address,undefined` and runs them |
 
 **How it runs**
