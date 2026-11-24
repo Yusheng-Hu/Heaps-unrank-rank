@@ -219,7 +219,9 @@ std::vector<int> C2   = heaps::variant::rank(n, perm);   // C2 == C
 The construction is unchanged -- one factoradic digit per level, `n` blocks of
 `(n-1)!` at level `n` -- and the per-level map is even simpler. Block `q` of
 level `k` starts with `W(k, q)` applied to the arrangement that entered the
-level, and `W(k, q)` is closed form (`heaps::variant::base_map`):
+level, and `W(k, q)` is closed form (`heaps::variant::base_map`); `rank` uses
+its inverse, which is closed form too and is exposed as
+`heaps::variant::inverse_map`. The two cases are:
 
 | `k` | `W(k, q)` |
 |---|---|
@@ -240,11 +242,16 @@ Two differences are worth knowing:
   swap-after-call shape is a separate order rather than the same algorithm.
 
 `test_variant` checks the closed form of `W(k, q)` against the generator for
-`k = 2..8`, then verifies both directions exhaustively in one streaming pass:
-every emission is unranked from an independent mixed-radix counter and ranked
-back, up to `n = 9` by default (409,110 permutations) and `n = 11` with `--full`
-(43,954,710 permutations, ~43 s), plus round trips at `n = 64, 128, 256`. The
-fast run reports **24 checks, 0 failures** in ~0.4 s.
+`k = 2..8` and that `W(k, q)` and `inverse_map(k, q)` are mutual inverses for
+`k = 2..12` (649 combinations), then verifies both directions exhaustively in
+one streaming pass: every emission is unranked from an independent mixed-radix
+counter and ranked back, up to `n = 9` by default (409,110 permutations) and
+`n = 11` with `--full` (43,954,710 permutations, ~47 s), plus round trips at
+`n = 64, 128, 256`. The fast run reports **25 checks, 0 failures** in ~0.4 s and
+the `--full` run **27 checks, 0 failures** in ~47 s. Two of the checks are
+controls: the two orders must agree at `n <= 3` and must *disagree* from
+`n = 4` on, so a test that accidentally compared one implementation with itself
+would fail.
 
 ## Resumable generation
 

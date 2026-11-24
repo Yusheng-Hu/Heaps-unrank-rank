@@ -26,6 +26,7 @@
 #include "heaps_unrank_variant.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -49,20 +50,22 @@ void section(const char* title) { std::printf("\n%s\n", title); }
 
 // Ground truth: the variant generator, emitting every permutation of k elements
 // in order.  `emit` is called once per output, with A holding that output.
+// `stop`, when given, ends the traversal as soon as it becomes true.
 template <class Emit>
-void enumerate(int k, std::vector<int>& A, Emit& emit) {
+void enumerate(int k, std::vector<int>& A, Emit& emit, const bool* stop = nullptr) {
+    if (stop != nullptr && *stop) return;
     if (k == 1) {
         emit();
         return;
     }
     if (k % 2 != 0) {
         for (int i = 0; i < k; ++i) {
-            enumerate(k - 1, A, emit);
+            enumerate(k - 1, A, emit, stop);
             std::swap(A[0], A[static_cast<std::size_t>(k - 1)]);
         }
     } else {
         for (int i = 0; i < k; ++i) {
-            enumerate(k - 1, A, emit);
+            enumerate(k - 1, A, emit, stop);
             std::swap(A[static_cast<std::size_t>(i)], A[static_cast<std::size_t>(k - 1)]);
         }
     }
@@ -79,6 +82,7 @@ bool is_permutation(const std::vector<int>& p) {
 }
 
 long long factorial(int n) {
+    assert(n >= 0 && n <= 20);          // 20! is the largest that fits in long long
     long long f = 1;
     for (int i = 2; i <= n; ++i) f *= i;
     return f;
@@ -172,15 +176,21 @@ void check_agrees_with_heap_order(int n) {
     std::iota(A.begin(), A.end(), 0);
 
     bool ok = true;
+    bool stop = false;
     long long index = 0;
     std::vector<int> C(static_cast<std::size_t>(n), 0);
     std::vector<int> mine, heap;
     auto emit = [&]() {
         if (ok) {
+            // Two different implementations, deliberately: heaps::variant::unrank
+            // is the swap-after-call order, heaps::unrank is Heap's order.  The
+            // negative control check_orders_differ() below fails if these two
+            // ever end up being the same function.
             mine = heaps::variant::unrank(n, C);
             heap = heaps::unrank(n, C);
             if (mine != heap) {
                 ok = false;
+                stop = true;
                 std::printf("    n=%d index %lld: variant and Heap orders differ\n", n, index);
             }
         }
@@ -190,8 +200,37 @@ void check_agrees_with_heap_order(int n) {
             C[static_cast<std::size_t>(n - k)] = 0;
         }
     };
-    enumerate(n, A, emit);
+    enumerate(n, A, emit, &stop);
     check(ok, "n = " + std::to_string(n) + ": variant order equals Heap's order");
+}
+
+// Negative control for the check above: the two orders really are different, so
+// a comparison that "passes" everywhere cannot be an artefact of both calls
+// reaching the same implementation.
+void check_orders_differ(int n) {
+    std::vector<int> A(static_cast<std::size_t>(n));
+    std::iota(A.begin(), A.end(), 0);
+
+    bool differ = false;
+    long long first = -1;
+    long long index = 0;
+    std::vector<int> C(static_cast<std::size_t>(n), 0);
+    auto emit = [&]() {
+        if (!differ) {
+            if (heaps::variant::unrank(n, C) != heaps::unrank(n, C)) {
+                differ = true;
+                first = index;
+            }
+        }
+        ++index;
+        for (int k = 2; k <= n; ++k) {
+            if (++C[static_cast<std::size_t>(n - k)] < k) break;
+            C[static_cast<std::size_t>(n - k)] = 0;
+        }
+    };
+    enumerate(n, A, emit, &differ);
+    check(differ, "n = " + std::to_string(n) + ": the two orders differ (first at index " +
+                      std::to_string(first) + ")");
 }
 
 // --- 4 ----------------------------------------------------------------------
@@ -218,6 +257,33 @@ void check_round_trips() {
         }
         check(ok, "round trips at n = " + std::to_string(n));
     }
+}
+
+// --- 5 ----------------------------------------------------------------------
+// The closed form of W(k, q) and the closed form of its inverse must be mutual
+// inverses at every level and every block -- this is what rank() relies on.
+void check_inverse_maps() {
+    bool ok = true;
+    long long pairs = 0;
+    std::vector<int> map, inverse;
+    for (int k = 2; k <= 12; ++k) {
+        for (int q = 0; q < k; ++q) {
+            heaps::variant::base_map(k, q, map);
+            heaps::variant::inverse_map(k, q, inverse);
+            for (int i = 0; i < k; ++i) {
+                ++pairs;
+                if (map[static_cast<std::size_t>(inverse[static_cast<std::size_t>(i)])] != i ||
+                    inverse[static_cast<std::size_t>(map[static_cast<std::size_t>(i)])] != i) {
+                    ok = false;
+                    if (pairs < 5) {
+                        std::printf("    k=%d q=%d i=%d: W and its inverse disagree\n", k, q, i);
+                    }
+                }
+            }
+        }
+    }
+    check(ok, "W(k,q) and inverse_map(k,q) are mutual inverses (" + std::to_string(pairs) +
+                  " (k,q,i) combinations, k = 2..12)");
 }
 
 void usage(const char* prog) {
@@ -259,6 +325,11 @@ int main(int argc, char** argv) {
 
     section("Agreement with Heap's order (holds for n <= 3 only)");
     for (int n = 1; n <= 3; ++n) check_agrees_with_heap_order(n);
+    check_orders_differ(4);
+    check_orders_differ(5);
+
+    section("Closed form of W(k, q) and of its inverse");
+    check_inverse_maps();
 
     section("Round trips at larger n");
     check_round_trips();

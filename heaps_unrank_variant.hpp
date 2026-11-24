@@ -57,6 +57,10 @@ struct Workspace {
 /// A_start[i] = A_enter[W[i]] for i = 0 .. k-1.  `map` receives k entries.
 void base_map(int k, int q, std::vector<int>& map);
 
+/// Its inverse: `inverse[i]` is the slot j with W(j) = i, that is
+/// base_map(k, q)[inverse[i]] == i and inverse[base_map(k, q)[i]] == i.
+void inverse_map(int k, int q, std::vector<int>& inverse);
+
 /// Unrank -- Theta(n^2) time, O(n) space.
 ///
 /// `C` is the high-first Lehmer code of length n,

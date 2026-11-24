@@ -55,6 +55,49 @@ void base_map(int k, int q, std::vector<int>& map) {
     }
 }
 
+namespace {
+
+// Closed-form inverse of base_map(k, b): inverse_of(k, b, v) is the slot j with
+// W(j) = v, i.e. base_map(k, b)[inverse_of(k, b, v)] == v.
+int inverse_of(int k, int b, int v) {
+    if (k % 2 != 0) {
+        return (v + b) % k;                    // inverse of a right rotation
+    }
+    if (b == 0) {
+        return v;
+    }
+    if (b == 1) {
+        return (v == 0) ? k - 1 : (v == k - 1 ? 0 : v);
+    }
+    if (v == 0) {
+        return 1;
+    }
+    if (v <= b - 2) {
+        return v + 1;
+    }
+    if (v == b - 1) {
+        return k - 1;
+    }
+    if (v == k - 1) {
+        return 0;
+    }
+    return v;
+}
+
+}  // namespace
+
+// -----------------------------------------------------------------------------
+// W(k, q)^{-1} as an array: inverse[i] is the slot that W(k, q) sends to i.
+// -----------------------------------------------------------------------------
+void inverse_map(int k, int q, std::vector<int>& inverse) {
+    assert(k >= 1);
+    assert(q >= 0 && q < k);
+    inverse.resize(static_cast<std::size_t>(k));
+    for (int v = 0; v < k; ++v) {
+        inverse[static_cast<std::size_t>(v)] = inverse_of(k, q, v);
+    }
+}
+
 // -----------------------------------------------------------------------------
 // unrank: level k = n down to 2, composing p <- p . W(k, b) each time.
 // Composition: (p . W)[i] = p[W[i]], which is why the table maps destination
@@ -72,6 +115,7 @@ void unrank(int n, const int* C, int* perm, Workspace& workspace) {
 
     for (int k = n; k >= 2; --k) {
         const int b = C[n - k];
+        assert(b >= 0 && b < k);               // d_k must lie in [0, k)
         base_map(k, b, workspace.map);
         std::vector<int>& next = workspace.next;
         next.assign(p.begin(), p.end());
@@ -116,6 +160,18 @@ void rank(int n, const int* perm, int* C, Workspace& workspace) {
         C[i] = 0;                              // C[n-1] is always 0
     }
 
+    assert(([&] {                              // input must be a permutation
+        std::vector<char> seen(static_cast<std::size_t>(n), 0);
+        for (int i = 0; i < n; ++i) {
+            if (labels[static_cast<std::size_t>(i)] < 0 || labels[static_cast<std::size_t>(i)] >= n) {
+                return false;
+            }
+            if (seen[static_cast<std::size_t>(labels[static_cast<std::size_t>(i)])]) return false;
+            seen[static_cast<std::size_t>(labels[static_cast<std::size_t>(i)])] = 1;
+        }
+        return true;
+    })());
+
     std::vector<int>& pos = workspace.pos;
     std::vector<int>& npos = workspace.npos;
     pos.resize(static_cast<std::size_t>(n));
@@ -131,24 +187,7 @@ void rank(int n, const int* perm, int* C, Workspace& workspace) {
         C[n - k] = b;
 
         for (int v = 0; v < k; ++v) {           // closed-form inverse of W(k, b)
-            int u;
-            if (k % 2 != 0) {
-                u = (v + b) % k;                // inverse of a right rotation
-            } else if (b == 0) {
-                u = v;
-            } else if (b == 1) {
-                u = (v == 0) ? k - 1 : (v == k - 1 ? 0 : v);
-            } else if (v == 0) {
-                u = 1;
-            } else if (v <= b - 2) {
-                u = v + 1;
-            } else if (v == b - 1) {
-                u = k - 1;
-            } else if (v == k - 1) {
-                u = 0;
-            } else {
-                u = v;
-            }
+            const int u = inverse_of(k, b, v);
             npos[static_cast<std::size_t>(u)] = pos[static_cast<std::size_t>(v)];
         }
 
