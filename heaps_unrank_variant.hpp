@@ -8,16 +8,25 @@
 //  Heap's recursion has a second common shape, in which the swap is performed
 //  *after* each recursive call while the loop index runs over 0 .. k-1:
 //
-//      gen(k):
-//          if k == 1: emit; return
+//      gen(A, k):                      // A is the whole array, n slots
+//          if k == 1: emit(A); return  // one emission per leaf call
 //          for i = 0 .. k-1:
-//              gen(k-1)
-//              if k is odd: swap(A[0], A[k-1]) else swap(A[i], A[k-1])
+//              gen(A, k-1)
+//              if k is odd: swap(A[0],   A[k-1])
+//              else:        swap(A[i],   A[k-1])
 //
 //  That loop still emits every permutation of n elements exactly once, but the
 //  resulting order is NOT Heap's order: the two sequences agree for n <= 3 and
 //  differ from n = 4 on (the fourth block hands back a different arrangement).
 //  This module supplies rank / unrank for that order.
+//
+//  Two properties of gen are used below, both of them easy to check by running
+//  the loop.  First, a complete level-k block applied to an entering
+//  arrangement A leaves A unchanged when k is odd, and replaces it by the right
+//  rotation [A[k-1], A[0], ..., A[k-2]] when k is even.  Second, level k only
+//  ever touches A[k-1] and one of the first k slots, so the tail A[k..n-1]
+//  cannot move at that level; a level is therefore a permutation of the first
+//  k slots, and the digits below describe that permutation.
 //
 //  The structure is the same as in heaps_unrank.hpp -- factoradic digits
 //  d_k in [0, k) stored at C[n-k], one level per digit, Theta(n^2) time and

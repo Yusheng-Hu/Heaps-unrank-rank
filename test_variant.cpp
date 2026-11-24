@@ -183,11 +183,13 @@ void check_agrees_with_heap_order(int n) {
     auto emit = [&]() {
         if (ok) {
             // Two different implementations, deliberately: heaps::variant::unrank
-            // is the swap-after-call order, heaps::unrank is Heap's order.  The
+            // is the swap-after-call order, heaps::unrank is Heap's order.  Both
+            // are spelled with their full path (::heaps::...), so that no lookup
+            // rule can make the two lines resolve to the same function.  The
             // negative control check_orders_differ() below fails if these two
             // ever end up being the same function.
-            mine = heaps::variant::unrank(n, C);
-            heap = heaps::unrank(n, C);
+            mine = ::heaps::variant::unrank(n, C);
+            heap = ::heaps::unrank(n, C);
             if (mine != heap) {
                 ok = false;
                 stop = true;
@@ -217,7 +219,7 @@ void check_orders_differ(int n) {
     std::vector<int> C(static_cast<std::size_t>(n), 0);
     auto emit = [&]() {
         if (!differ) {
-            if (heaps::variant::unrank(n, C) != heaps::unrank(n, C)) {
+            if (::heaps::variant::unrank(n, C) != ::heaps::unrank(n, C)) {
                 differ = true;
                 first = index;
             }
@@ -265,6 +267,7 @@ void check_round_trips() {
 void check_inverse_maps() {
     bool ok = true;
     long long pairs = 0;
+    long long mismatches = 0;
     std::vector<int> map, inverse;
     for (int k = 2; k <= 12; ++k) {
         for (int q = 0; q < k; ++q) {
@@ -275,12 +278,15 @@ void check_inverse_maps() {
                 if (map[static_cast<std::size_t>(inverse[static_cast<std::size_t>(i)])] != i ||
                     inverse[static_cast<std::size_t>(map[static_cast<std::size_t>(i)])] != i) {
                     ok = false;
-                    if (pairs < 5) {
+                    if (++mismatches <= 5) {    // report the first few, not the first few pairs
                         std::printf("    k=%d q=%d i=%d: W and its inverse disagree\n", k, q, i);
                     }
                 }
             }
         }
+    }
+    if (!ok) {
+        std::printf("    %lld of %lld combinations disagree\n", mismatches, pairs);
     }
     check(ok, "W(k,q) and inverse_map(k,q) are mutual inverses (" + std::to_string(pairs) +
                   " (k,q,i) combinations, k = 2..12)");

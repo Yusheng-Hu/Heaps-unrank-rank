@@ -10,7 +10,7 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(heaps_unrank LANGUAGES CXX VERSION 2.1.0)
+project(heaps_unrank LANGUAGES CXX VERSION 2.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -52,7 +52,7 @@ add_test(NAME generators COMMAND test_generators)
 # Swap-after-call variant of the recursion (heaps_unrank_variant.hpp): a
 # different order from Heap's, still Theta(n^2) in both directions.  Exhaustive
 # to n = 9 by default; `test_variant --full` goes to n = 11 (43,954,710
-# permutations, ~40 s).
+# permutations, ~47 s).
 add_executable(test_variant test_variant.cpp)
 target_link_libraries(test_variant PRIVATE heaps_unrank)
 target_compile_options(test_variant PRIVATE ${HEAPS_WARNINGS})

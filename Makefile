@@ -7,10 +7,10 @@
 # Targets:
 #   make          build and run the standard verification suite
 #   make test     same as above
-#   make full     run the full suite (adds the exhaustive n = 10 check, ~40 s)
+#   make full     run the full suite (adds the exhaustive n = 10 check, ~34 s)
 #   make quick    run a quick smoke test
 #   make variant  run the swap-after-call variant suite (fast)
-#   make variant-full  same, exhaustively up to n = 11 (~40 s)
+#   make variant-full  same, exhaustively up to n = 11 (~47 s)
 #   make bench    build and run the wall-clock benchmark
 #   make clean    remove the build directory
 

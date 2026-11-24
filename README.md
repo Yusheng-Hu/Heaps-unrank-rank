@@ -119,11 +119,11 @@ With `make`:
 
 ```bash
 make            # build and run the standard suite + generator suite  (~20 s)
-make full       # full suite: also exhaustively checks n = 10          (~40 s)
+make full       # full suite: also exhaustively checks n = 10          (~34 s)
 make quick      # quick smoke test                                     (~3 s)
 make gen        # resumable-generation consistency test               (~0.3 s)
 make variant    # swap-after-call order, exhaustive to n = 9            (~0.4 s)
-make variant-full  # same, exhaustive to n = 11                        (~43 s)
+make variant-full  # same, exhaustive to n = 11                        (~47 s)
 make bench      # wall-clock benchmark
 ```
 
