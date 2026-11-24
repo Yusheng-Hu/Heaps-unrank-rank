@@ -18,11 +18,16 @@ A dense Theta(n^3) variant of the same construction is kept in
 `heaps_unrank_o_n3.*` and is exercised by the test suite as an independent
 cross-check.
 
+The library also indexes a **second** recursion shape of the same family, in
+which the swap comes after each recursive call (`heaps_unrank_variant.*`, see
+*The swap-after-call order* below). It emits the same `n!` permutations in a
+different order, also in **Theta(n^2)** time.
+
 - **Repository:** <https://github.com/Yusheng-Hu/Heaps-unrank-rank>
 - **Companion paper:** *Ranking and Unranking Permutations in Heap's Order* -- PDF
   in [`paper/heap_paper_en.pdf`](paper/heap_paper_en.pdf)
 - **Author:** YUSHENG HU <dr.huyusheng@gmail.com>
-- **Version:** 2.1
+- **Version:** 2.2
 - **License:** MIT -- see [`LICENSE`](LICENSE)
 
 ---
@@ -95,14 +100,17 @@ work:
 |---|---|
 | `heaps_unrank.hpp` | public interface: `unrank`, `rank`, `step_map`, vector overloads |
 | `heaps_unrank.cpp` | implementation (per-step O(1) block transition, paper Section 4.5) |
+| `heaps_unrank_variant.hpp` | public interface of the swap-after-call order: `base_map`, `unrank`, `rank` |
+| `heaps_unrank_variant.cpp` | implementation of that order (closed-form `W(k, q)`, Theta(n^2)) |
 | `heaps_generator.hpp` | resumable generation (paper, Section 5): `restore_context`, `FactorialHeapGenerator` |
 | `heaps_generator.cpp` | the two routes that start the Heap sequence at an arbitrary index |
 | `test_heaps_unrank.cpp` | verification suite |
+| `test_variant.cpp` | verification suite of the swap-after-call order |
 | `test_generators.cpp` | consistency test of both restart routes against `heaps::unrank()` (n <= 8) |
 | `bench_heaps.cpp` | wall-clock benchmark of a single `unrank` call |
 | `paper/heap_paper_en.pdf` | the companion paper (current version) |
 | `Makefile` | simple build / test / bench targets |
-| `CMakeLists.txt` | CMake build with two CTest tests |
+| `CMakeLists.txt` | CMake build with three CTest tests |
 | `.github/workflows/ci.yml` | GitHub Actions pipeline |
 
 ## Build and run
@@ -114,6 +122,8 @@ make            # build and run the standard suite + generator suite  (~20 s)
 make full       # full suite: also exhaustively checks n = 10          (~40 s)
 make quick      # quick smoke test                                     (~3 s)
 make gen        # resumable-generation consistency test               (~0.3 s)
+make variant    # swap-after-call order, exhaustive to n = 9            (~0.4 s)
+make variant-full  # same, exhaustive to n = 11                        (~43 s)
 make bench      # wall-clock benchmark
 ```
 
@@ -143,8 +153,9 @@ c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -I. \
 | 4 | **Exhaustive** round trip `rank(unrank(C)) == C` for every code | `n = 1..8` (all `n!` codes) |
 | 5 | Randomised round trips, plus a validity check that the output is a permutation of `0..n-1` | `n in {12,16,20,32,48,64,100}`, 20,000 trials each |
 
-The generator suite is a separate program (`test_generators`); it is described
-under *Resumable generation*.
+The generator suite is a separate program (`test_generators`) and the
+swap-after-call suite another (`test_variant`); they are described under
+*Resumable generation* and *The swap-after-call order*.
 
 The program exits with status 0 only when every check passes, and prints a
 `PASS`/`FAIL` line per check. Check 3 is the strongest evidence: all `n!` codes
@@ -180,6 +191,60 @@ only):
 Doubling `n` from 100 to 200 multiplies the time by about five, which is the
 quadratic growth the analysis predicts. The paper deliberately keeps its
 analysis asymptotic and reports no machine timings.
+
+## The swap-after-call order
+
+Heap's recursion has a second common shape, with the swap placed after each
+recursive call while the loop index runs over `0 .. k-1`:
+
+```
+gen(k):
+    if k == 1: emit; return
+    for i = 0 .. k-1:
+        gen(k-1)
+        if k is odd: swap(A[0], A[k-1]) else swap(A[i], A[k-1])
+```
+
+It emits the same `n!` permutations, but in a different order: the two
+sequences agree for `n <= 3` and separate from `n = 4` on. `heaps_unrank_variant`
+indexes that order with the same index convention as the main module:
+
+```cpp
+#include "heaps_unrank_variant.hpp"
+
+std::vector<int> perm = heaps::variant::unrank(n, C);
+std::vector<int> C2   = heaps::variant::rank(n, perm);   // C2 == C
+```
+
+The construction is unchanged -- one factoradic digit per level, `n` blocks of
+`(n-1)!` at level `n` -- and the per-level map is even simpler. Block `q` of
+level `k` starts with `W(k, q)` applied to the arrangement that entered the
+level, and `W(k, q)` is closed form (`heaps::variant::base_map`):
+
+| `k` | `W(k, q)` |
+|---|---|
+| odd | right rotation of the first `k` slots by `q` positions |
+| even | the transpositions `(0,k-1)(1,k-1)...(q-1,k-1)`, in that order |
+
+`W(k, q)` and its inverse are both closed form, so neither direction replays the
+`q` steps of a block: a level costs `Theta(k)`, a call `Theta(n^2)`, and no
+precomputation is used -- the same bounds as for Heap's order.
+
+Two differences are worth knowing:
+
+* the digit is read off the trailing element `t` of the current permutation as
+  `b = (k-1-t) mod k` for odd `k`, and `b = 0` or `b = t+1` for even `k`;
+* this order is **not minimal-change**: at some block boundaries consecutive
+  outputs differ by more than one transposition (three places at `n = 4`,
+  nineteen at `n = 5`). Heap's order keeps that property, which is why the
+  swap-after-call shape is a separate order rather than the same algorithm.
+
+`test_variant` checks the closed form of `W(k, q)` against the generator for
+`k = 2..8`, then verifies both directions exhaustively in one streaming pass:
+every emission is unranked from an independent mixed-radix counter and ranked
+back, up to `n = 9` by default (409,110 permutations) and `n = 11` with `--full`
+(43,954,710 permutations, ~43 s), plus round trips at `n = 64, 128, 256`. The
+fast run reports **24 checks, 0 failures** in ~0.4 s.
 
 ## Resumable generation
 
@@ -221,9 +286,9 @@ The pipeline in `.github/workflows/ci.yml` runs three jobs:
 
 | Job | What it does |
 |---|---|
-| `build & test (os)` | configures and builds with CMake, then runs both CTest tests (verification suite and generator suite) on `ubuntu-latest`, `macos-latest` and `windows-latest` |
+| `build & test (os)` | configures and builds with CMake, then runs all three CTest tests (verification, generator, swap-after-call) on `ubuntu-latest`, `macos-latest` and `windows-latest` |
 | `strict warnings (cxx)` | compiles every source file, including the test programs, with `-Wall -Wextra -Wpedantic -Werror` under `g++` and `clang++` |
-| `ASan + UBSan` | rebuilds both suites with `-fsanitize=address,undefined` and runs them |
+| `ASan + UBSan` | rebuilds all three suites with `-fsanitize=address,undefined` and runs them |
 
 **How it runs**
 
@@ -249,7 +314,7 @@ ctest --test-dir build -C Release --output-on-failure
 
 # job "strict warnings"
 for f in heaps_unrank.cpp heaps_unrank_o_n3.cpp heaps_generator.cpp \
-         bench_heaps.cpp test_heaps_unrank.cpp test_generators.cpp; do
+         bench_heaps.cpp test_heaps_unrank.cpp test_generators.cpp test_variant.cpp; do
   g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. -c "$f" -o "/tmp/${f%.cpp}.o"
 done
 
@@ -259,6 +324,8 @@ g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Wall
 g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Wall -Wextra -I. \
     heaps_generator.cpp heaps_unrank.cpp heaps_unrank_o_n3.cpp test_generators.cpp \
     -o test_gen_san && ./test_gen_san
+g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Wall -Wextra -I. \
+    heaps_unrank_variant.cpp heaps_unrank.cpp test_variant.cpp -o test_var_san && ./test_var_san
 ```
 
 ## License

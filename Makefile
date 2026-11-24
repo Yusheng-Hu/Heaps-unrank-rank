@@ -9,6 +9,8 @@
 #   make test     same as above
 #   make full     run the full suite (adds the exhaustive n = 10 check, ~40 s)
 #   make quick    run a quick smoke test
+#   make variant  run the swap-after-call variant suite (fast)
+#   make variant-full  same, exhaustively up to n = 11 (~40 s)
 #   make bench    build and run the wall-clock benchmark
 #   make clean    remove the build directory
 
@@ -21,10 +23,11 @@ endif
 BIN      := $(BUILD)/test_heaps_unrank$(EXE)
 BENCH    := $(BUILD)/bench_heaps$(EXE)
 GEN      := $(BUILD)/test_generators$(EXE)
+VAR      := $(BUILD)/test_variant$(EXE)
 SOURCES  := heaps_unrank.cpp heaps_unrank_o_n3.cpp heaps_generator.cpp test_heaps_unrank.cpp
-HEADERS  := heaps_unrank.hpp heaps_unrank_o_n3.hpp heaps_generator.hpp
+HEADERS  := heaps_unrank.hpp heaps_unrank_o_n3.hpp heaps_generator.hpp heaps_unrank_variant.hpp
 
-.PHONY: all test gen full quick bench clean
+.PHONY: all test gen variant variant-full full quick bench clean
 
 all: test
 
@@ -36,9 +39,10 @@ $(BENCH): bench_heaps.cpp heaps_unrank.cpp heaps_unrank_o_n3.cpp $(HEADERS)
 	@mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) -I. -o $@ bench_heaps.cpp heaps_unrank.cpp heaps_unrank_o_n3.cpp
 
-test: $(BIN) $(GEN)
+test: $(BIN) $(GEN) $(VAR)
 	./$(BIN)
 	./$(GEN)
+	./$(VAR)
 
 gen: $(GEN)
 	./$(GEN)
@@ -46,6 +50,16 @@ gen: $(GEN)
 $(GEN): heaps_generator.cpp test_generators.cpp heaps_unrank.cpp $(HEADERS)
 	@mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) -I. -o $@ heaps_generator.cpp test_generators.cpp heaps_unrank.cpp
+
+$(VAR): heaps_unrank_variant.cpp test_variant.cpp heaps_unrank.cpp $(HEADERS)
+	@mkdir -p $(BUILD)
+	$(CXX) $(CXXFLAGS) -I. -o $@ heaps_unrank_variant.cpp test_variant.cpp heaps_unrank.cpp
+
+variant: $(VAR)
+	./$(VAR)
+
+variant-full: $(VAR)
+	./$(VAR) --full
 
 full: $(BIN)
 	./$(BIN) --full
