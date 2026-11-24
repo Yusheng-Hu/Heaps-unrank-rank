@@ -63,7 +63,7 @@ jobs:
 
       - name: Compile with -Wall -Wextra -Wpedantic -Werror
         run: |
-          for f in heaps_unrank*.cpp test_heaps_unrank.cpp test_generators.cpp bench_heaps.cpp; do
+          for f in heaps_unrank*.cpp test_heaps_unrank.cpp test_generators.cpp test_variant.cpp bench_heaps.cpp; do
             ${{ matrix.cxx }} -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -I. \
               -c "$f" -o "/tmp/${f%.cpp}.o"
           done
@@ -86,12 +86,16 @@ jobs:
               -fno-omit-frame-pointer -Wall -Wextra -I. \
               heaps_generator.cpp heaps_unrank.cpp heaps_unrank_o_n3.cpp \
               test_generators.cpp -o test_gen_san
+          g++ -std=c++17 -O1 -g -fsanitize=address,undefined \
+              -fno-omit-frame-pointer -Wall -Wextra -I. \
+              heaps_unrank_variant.cpp heaps_unrank.cpp test_variant.cpp -o test_var_san
 
       - name: Run
         shell: bash
         run: |
           ./test_san 2>&1 | tee sanitizer.log
           ./test_gen_san 2>&1 | tee -a sanitizer.log
+          ./test_var_san 2>&1 | tee -a sanitizer.log
 
       - name: Publish the test result to the run summary
         if: always()
