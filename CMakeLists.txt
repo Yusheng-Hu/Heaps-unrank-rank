@@ -26,7 +26,8 @@ else()
   set(HEAPS_WARNINGS -Wall -Wextra -Wpedantic)
 endif()
 
-add_library(heaps_unrank STATIC heaps_unrank.cpp heaps_unrank_o_n3.cpp heaps_generator.cpp)
+add_library(heaps_unrank STATIC heaps_unrank.cpp heaps_unrank_o_n3.cpp heaps_generator.cpp
+                              heaps_unrank_variant.cpp)
 target_include_directories(heaps_unrank PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(heaps_unrank PRIVATE ${HEAPS_WARNINGS})
 
@@ -47,6 +48,15 @@ add_executable(test_generators test_generators.cpp)
 target_link_libraries(test_generators PRIVATE heaps_unrank)
 target_compile_options(test_generators PRIVATE ${HEAPS_WARNINGS})
 add_test(NAME generators COMMAND test_generators)
+
+# Swap-after-call variant of the recursion (heaps_unrank_variant.hpp): a
+# different order from Heap's, still Theta(n^2) in both directions.  Exhaustive
+# to n = 9 by default; `test_variant --full` goes to n = 11 (43,954,710
+# permutations, ~40 s).
+add_executable(test_variant test_variant.cpp)
+target_link_libraries(test_variant PRIVATE heaps_unrank)
+target_compile_options(test_variant PRIVATE ${HEAPS_WARNINGS})
+add_test(NAME variant COMMAND test_variant)
 
 # Wall-clock benchmark (not a test); the paper's operation counts come from an
 # instrumented build.
